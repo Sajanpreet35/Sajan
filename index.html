@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dynamic Image Gallery</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f9f9f9;
+            margin: 0;
+            padding: 20px;
+            text-align: center;
+        }
+        h1 {
+            color: #333;
+        }
+        .gallery {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 20px;
+            margin-top: 30px;
+        }
+        .gallery img {
+            max-width: 300px;
+            width: 100%;
+            height: auto;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            transition: transform 0.3s;
+        }
+        .gallery img:hover {
+            transform: scale(1.05);
+        }
+        footer {
+            margin-top: 40px;
+            color: #777;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <h1>My Dynamic Image Gallery</h1>
+    <div class="gallery" id="gallery"></div>
+
+    <footer>
+        &copy; 2025 My GitHub Page
+    </footer>
+
+    <script>
+        // Yahan apne images ke URLs add karo
+        const images = [
+            "https://i.ibb.co/d4Fk32RB/image.png",
+            "https://i.ibb.co/zHLKjjc4/image.png",
+            "https://i.ibb.co/hJ243GyZ/image.png"
+            // Nayi images add karte raho yahan
+        ];
+
+        const gallery = document.getElementById('gallery');
+
+        images.forEach(src => {
+            const img = document.createElement('img');
+            img.src = src;
+            gallery.appendChild(img);
+        });
+    </script>
+</body>
+</html>
