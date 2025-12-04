@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Blind‑Assist AI</title>
+
+  <!-- Load TensorFlow.js and COCO‑SSD model from CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.22.0/dist/tf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.2/dist/coco-ssd.min.js"></script>
+</head>
+<body style="margin:0; padding:0; background:#000; color:#fff; text-align:center; font-family:sans-serif;">
+
+  <h2>Blind‑Assist AI (Prototype)</h2>
+  <video id="video" autoplay playsinline style="width:100%; max-height:60vh; object-fit:cover;"></video>
+  <canvas id="canvas" style="display:none;"></canvas>
+
+  <div>
+    <button id="btnStartCam">📷 कैमरा शुरू करें</button>
+    <button id="btnDetect">🔍 पहचान शुरू करें</button>
+    <button id="btnVoice">🎤 पूछें (Voice)</button>
+  </div>
+
+  <div id="chatUI" style="margin-top:20px;">
+    <input type="text" id="aiInput" placeholder="AI से पूछें..." style="width:80%; padding:8px;">
+    <button id="btnAsk">➡ पूछें</button>
+    <p id="aiResponse" style="padding:10px; background:#111; border-radius:8px;"></p>
+  </div>
+
+  <script>
+  // --- Globals ---
+  let video = document.getElementById('video');
+  let canvas = document.getElementById('canvas');
+  let ctx = canvas.getContext('2d');
+  let model = null;
+  let isDetecting = false;
+  let lastSpeakTime = {};
+
+  // --- Utility: Hindi speech ---
+  function speakHindi(text) {
+    const msg = new SpeechSynthesisUtterance(text);
+    msg.lang = 'hi-IN';
+    speechSynthesis.speak(msg);
+  }
+
+  // --- Start camera (back) ---
+  document.getElementById('btnStartCam').onclick = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { exact: "environment" } },
+        audio: false
+      });
+      video.srcObject = stream;
+    } catch (err) {
+      alert("कैमरा अनुमति दें और दुबारा कोशिश करें।");
+      console.error(err);
+    }
+  };
+
+  // --- Load model ---
+  async function loadModel() {
+    if (!model) {
+      model = await cocoSsd.load();
+      console.log("Model loaded.");
+    }
+  }
+
+  // --- Detection loop ---
+  async function detectFrame() {
+    if (!model || !isDetecting) return;
+    if (video.readyState !== 4) {
+      requestAnimationFrame(detectFrame);
+      return;
+    }
+
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    const preds = await model.detect(video);
+    preds.forEach(p => {
+      const cls = p.class;
+      const now = Date.now();
+      if (!lastSpeakTime[cls] || now - lastSpeakTime[cls] > 3000) {
+        speakHindi("आपके सामने " + cls + " है");
+        lastSpeakTime[cls] = now;
+      }
+    });
+
+    requestAnimationFrame(detectFrame);
+  }
+
+  // --- Detect button ---
+  document.getElementById('btnDetect').onclick = async () => {
+    await loadModel();
+    isDetecting = true;
+    speakHindi("पता लगाने की शुरुआत हो गयी है।");
+    detectFrame();
+  };
+
+  // --- Voice input (speech recognition) + AI ask ---
+  document.getElementById('btnVoice').onclick = () => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert("ब्राउज़र speech recognition सपोर्ट नहीं करता। Chrome/Edge इस्तेमाल करें।");
+      return;
+    }
+    const recog = new SpeechRecognition();
+    recog.lang = 'hi-IN';
+    recog.start();
+    recog.onresult = (e) => {
+      const text = e.results[0][0].transcript;
+      document.getElementById('aiInput').value = text;
+      askAI(text);
+    };
+    recog.onerror = (err) => {
+      console.error("Voice error:", err);
+      speakHindi("क्षमा करें, आवाज़ नहीं सुन पाया।");
+    };
+  };
+
+  // --- Ask AI (free API placeholder) ---
+  async function askAI(question) {
+    document.getElementById('aiResponse').innerText = "सोच रहा हूँ...";
+    speakHindi("मैं सोच रहा हूँ...");
+
+    try {
+      const resp = await fetch("https://api.freeai.chat/your-endpoint", {
+        method: "POST",
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify({ prompt: question })
+      });
+      const data = await resp.json();
+      const ans = data.answer || "माफ करें, अभी उत्तर नहीं दे सकता।";
+      document.getElementById('aiResponse').innerText = ans;
+      speakHindi(ans);
+    } catch (e) {
+      console.error("AI error:", e);
+      document.getElementById('aiResponse').innerText = "एआई सेवा उपलब्ध नहीं।";
+      speakHindi("एआई सेवा उपलब्ध नहीं।");
+    }
+  }
+
+  document.getElementById('btnAsk').onclick = () => {
+    const q = document.getElementById('aiInput').value;
+    if (q.trim().length) askAI(q);
+  }
+
+  </script>
+
+</body>
+</html>
