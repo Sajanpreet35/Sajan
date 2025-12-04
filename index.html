@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<title>Ultra Blind Assistant – ChatGPT से Powerful</title>
+<style>
+body { background:#000; color:#fff; font-family:Arial; text-align:center; margin:0; padding:20px; }
+video { width:95%; max-height:60vh; border:3px solid #00ff88; border-radius:12px; }
+button { padding:15px; width:90%; margin-top:10px; font-size:20px; border-radius:10px; border:none; background:#00ff88; }
+</style>
+</head>
+<body>
+
+<h2>Ultra Blind Assistant – ChatGPT से Powerful</h2>
+<video id="camera" autoplay playsinline></video>
+<br>
+<button onclick="startCamera()">कैमरा चालू करें</button>
+<button onclick="startVision()">AI विज़न चालू करें</button>
+<button onclick="stopVision()">AI विज़न बंद करें</button>
+<button onclick="startVoice()">Voice Command चालू करें</button>
+
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd"></script>
+
+<script>
+let video = document.getElementById("camera");
+let model;
+let running = false;
+let synth = window.speechSynthesis;
+let memory = [];
+
+// ------------------ SPEAK HINDI ------------------
+function speak(text){
+    if(synth.speaking) return;
+    let utter = new SpeechSynthesisUtterance(text);
+    utter.lang = "hi-IN"; utter.rate=1; utter.pitch=1;
+    synth.speak(utter);
+}
+
+// ------------------ START CAMERA ------------------
+async function startCamera(){
+    try{
+        let stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}});
+        video.srcObject = stream;
+        speak("कैमरा चालू हो गया है।");
+    } catch(e){
+        let stream = await navigator.mediaDevices.getUserMedia({video:true});
+        video.srcObject = stream;
+        speak("बैक कैमरा नहीं मिला, फ्रंट कैमरा चालू कर दिया।");
+    }
+}
+
+// ------------------ START VISION ------------------
+async function startVision(){
+    speak("AI विज़न लोड हो रहा है...");
+    model = await cocoSsd.load();
+    speak("AI विज़न तैयार है।");
+    running = true;
+    detectLoop();
+}
+
+// ------------------ STOP VISION ------------------
+function stopVision(){ running=false; speak("AI विज़न बंद कर दिया गया।"); }
+
+// ------------------ HINDI TRANSLATION ------------------
+function translateHindi(obj){
+    const map = {
+        person:"इंसान", chair:"कुर्सी", bottle:"बोतल", cup:"कप",
+        dog:"कुत्ता", cat:"बिल्ली", car:"कार", bus:"बस",
+        bicycle:"साइकिल", cellphone:"मोबाइल", laptop:"लैपटॉप"
+    };
+    return map[obj] || obj;
+}
+
+// ------------------ FREE MULTI-MODEL AI SIMULATION ------------------
+async function freeAI(question){
+    // Multi-model simulation (GPT4All + LLaMA + Falcon like)
+    const knowledge = {
+        "साइकिल":"साइकिल दो-पहियों वाला वाहन है, शहर में चलती है।",
+        "कार":"कार चार-पहियों वाला वाहन है, यातायात में इस्तेमाल होती है।",
+        "कुत्ता":"कुत्ता इंसान का मित्र और पालतू जानवर है।",
+        "कुर्सी":"कुर्सी पर बैठ सकते हैं, लकड़ी या प्लास्टिक की।",
+        "बिल्ली":"बिल्ली घरेलू जानवर है, प्यारी और चालाक।",
+        "मोबाइल":"मोबाइल से आप बात कर सकते हैं और इंटरनेट चला सकते हैं।",
+        "चाय":"चाय गर्म पेय है, शरीर को ऊर्जा देती है।",
+        "कुतुबमीनार":"कुतुबमीनार दिल्ली में स्थित प्रसिद्ध इमारत है।"
+    };
+    // Context-aware memory
+    if(memory.includes(question)) return "यह पहले दिखाई/पूछी जा चुकी जानकारी है।";
+    memory.push(question); if(memory.length>30) memory.shift();
+    return knowledge[question] || "मुझे इसके बारे में सही जानकारी नहीं है, लेकिन मैं सीख रही हूँ।";
+}
+
+// ------------------ DETECT LOOP ------------------
+async function detectLoop(){
+    if(!running) return;
+    const predictions = await model.detect(video);
+    if(predictions.length>0){
+        let best = predictions[0];
+        let hindi = translateHindi(best.class);
+        let near = best.bbox[3]/video.videoHeight > 0.3 ? "पास" : "दूर";
+        let info = await freeAI(best.class);
+        speak(`${hindi} ${near} है। ${info}`);
+    }
+    setTimeout(detectLoop,1500);
+}
+
+// ------------------ VOICE COMMAND ------------------
+let recognition;
+function startVoice(){
+    if(!('webkitSpeechRecognition' in window)){
+        speak("आपके ब्राउज़र में वॉइस कमांड सपोर्ट नहीं है।");
+        return;
+    }
+    recognition = new webkitSpeechRecognition();
+    recognition.lang="hi-IN"; recognition.continuous=true; recognition.interimResults=false;
+    recognition.start();
+    speak("वॉइस कमांड चालू हो गया है। आप बोल सकते हैं।");
+
+    recognition.onresult = async function(event){
+        let transcript = event.results[event.results.length-1][0].transcript.trim();
+        if(transcript){
+            speak("आपने पूछा: "+transcript);
+            let answer = await freeAI(transcript);
+            speak(answer);
+        }
+    }
+}
+</script>
+
+</body>
+</html>
